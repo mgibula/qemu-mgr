@@ -1,0 +1,2 @@
+# qemu-mgr
+QEMU manager
