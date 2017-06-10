@@ -26,7 +26,7 @@ type Instance struct {
 	Paused     bool   `json:"paused"`
 	KvmEnabled bool   `json:"kvm_enabled"`
 	Machine    string `json:"machine-type"`
-	Pidfile    string
+	Pidfile    string `json:"-"`
 }
 
 func (instance *Instance) ConstructCommandLineArgs() []string {
