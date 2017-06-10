@@ -35,6 +35,8 @@ func (action *MonitorAction) Execute(args []string) {
 	action.sockets = make(map[string]*MonitorState)
 	signal.Notify(action.terminate, syscall.SIGINT, syscall.SIGTERM)
 
+	action.scanDirectory()
+
 	ticker := time.NewTicker(time.Second)
 	go func() {
 		for range ticker.C {
