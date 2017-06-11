@@ -22,10 +22,10 @@ type Instance struct {
 	Memory struct {
 		Current uint `json:"current"`
 		Max     uint `json:"max"`
-	}
+	} `json:"memory"`
 	MemorySlots struct {
 		Available uint `json:"slots"`
-	}
+	} `json:"memory-slots"`
 	Paused     bool   `json:"paused"`
 	KvmEnabled bool   `json:"kvm_enabled"`
 	Machine    string `json:"machine-type"`
@@ -45,14 +45,17 @@ func (instance *Instance) ConstructCommandLineArgs() []string {
 	cmd = append(cmd, "timestamp=on")
 	cmd = append(cmd, "-name")
 	cmd = append(cmd, instance.Name)
-	cmd = append(cmd, "-pidfile")
-	cmd = append(cmd, instance.Pidfile)
 	cmd = append(cmd, "-machine")
 	cmd = append(cmd, instance.constructMachineConfig())
 	cmd = append(cmd, "-smp")
 	cmd = append(cmd, instance.constructSmpConfig())
 	cmd = append(cmd, "-m")
 	cmd = append(cmd, instance.constructMemoryConfig())
+
+	if len(instance.Pidfile) != 0 {
+		cmd = append(cmd, "-pidfile")
+		cmd = append(cmd, instance.Pidfile)
+	}
 
 	if len(instance.MonitorPath) != 0 {
 		cmd = append(cmd, "-chardev")
@@ -119,6 +122,11 @@ func (instance *Instance) ParseCommandLine(cmdline string) {
 	if smp_pos != 0 {
 		instance.readCpuTopology(parts[smp_pos+1])
 	}
+
+	mem_pos := findOption(parts, "-m")
+	if mem_pos != 0 {
+		instance.readMemorySettings(parts[mem_pos+1])
+	}
 }
 
 func (instance *Instance) readCpuTopology(options string) {
@@ -126,7 +134,8 @@ func (instance *Instance) readCpuTopology(options string) {
 	_, threads := findInteger("threads=([0-9]+)", options)
 	_, sockets := findInteger("sockets=([0-9]+)", options)
 
-	if cores == 0 && threads == 0 && sockets == 0 {
+	if cores == 0 || threads == 0 || sockets == 0 {
+		log.Printf("[%v] CPU topology not found\n", instance.MonitorPath)
 		return
 	}
 
@@ -134,6 +143,45 @@ func (instance *Instance) readCpuTopology(options string) {
 	instance.CpuTopology.Threads = uint(threads)
 	instance.CpuTopology.Cores = uint(cores)
 	instance.CpuTopology.Sockets = uint(sockets)
+}
+
+func (instance *Instance) readMemorySettings(options string) {
+	_, slots := findInteger("slots=([0-9]+)", options)
+	_, maxmem := findSize("maxmem=([0-9]+)([GM]?)", options)
+	_, size := findSize("^(?:size=)?([0-9]+)([GM]?)", options)
+
+	log.Printf("[%v] Found memory size %v MB\n", instance.MonitorPath, size)
+
+	if slots == 0 || maxmem == 0 {
+		log.Printf("[%v] Memory hotplug settings not found\n", instance.MonitorPath)
+		return
+	}
+
+	log.Printf("[%v] Found memory hotplug settings: %v slots, max memory size %v MB\n", instance.MonitorPath, slots, maxmem)
+	instance.Memory.Max = uint(maxmem)
+	instance.MemorySlots.Available = uint(slots)
+}
+
+func findSize(expression string, line string) (bool, int) {
+	re := regexp.MustCompile(expression)
+	found := re.FindStringSubmatch(line)
+
+	if len(found) <= 1 {
+		return false, 0
+	}
+
+	retval, err := strconv.Atoi(found[1])
+	if err != nil {
+		return false, 0
+	}
+
+	if len(found) == 3 {
+		if found[2] == "G" {
+			retval *= 1024
+		}
+	}
+
+	return true, retval
 }
 
 func findInteger(expression string, line string) (bool, int) {
