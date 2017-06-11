@@ -1,6 +1,10 @@
 package qemu
 
-import "log"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+)
 
 // -> { "execute": "query-cpus" }
 // <- { "return": [
@@ -31,6 +35,7 @@ type QueryCpusMessage struct {
 
 type ReadCpus struct {
 	MonitorResponse
+	ParseCmdLine bool
 
 	Return []struct {
 		Cpu      int    `json:"CPU"`
@@ -44,11 +49,22 @@ type ReadCpus struct {
 }
 
 func (command *ReadCpus) Execute(monitor *MonitorState) {
-	request := QueryStatusMessage{}
+	request := QueryCpusMessage{}
 	request.Execute = "query-cpus"
 	monitor.SendJson(request)
 }
 
 func (command *ReadCpus) ProcessResponse(monitor *MonitorState) {
 	log.Printf("[%v] Found %v CPUs\n", monitor.Path, len(command.Return))
+	monitor.Instance.Cpus = uint(len(command.Return))
+
+	if command.ParseCmdLine {
+		log.Printf("[%v] Parsing command line from /proc/%d/cmdline", monitor.Path, command.Return[0].ThreadId)
+		data, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cmdline", command.Return[0].ThreadId))
+		if err != nil {
+			log.Printf("Error %v while reading /proc/%d/cmdline", err, command.Return[0].ThreadId)
+		}
+
+		monitor.Instance.ParseCommandLine(string(data))
+	}
 }

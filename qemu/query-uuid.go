@@ -18,7 +18,7 @@ type ReadUuid struct {
 }
 
 func (command *ReadUuid) Execute(monitor *MonitorState) {
-	request := QmpCapabilitiesMessage{}
+	request := QueryUuidMessage{}
 	request.Execute = "query-uuid"
 	monitor.SendJson(request)
 }

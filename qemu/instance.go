@@ -3,6 +3,9 @@ package qemu
 import (
 	"fmt"
 	"log"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 type Instance struct {
@@ -104,4 +107,58 @@ func (instance *Instance) constructMemoryConfig() string {
 	}
 
 	return cmd
+}
+
+// Since not everything can be read from QMP, we need to parse
+// cmdline to read what we can
+func (instance *Instance) ParseCommandLine(cmdline string) {
+	parts := strings.Split(cmdline, "\x00")
+
+	// Try to determine CPU topology
+	smp_pos := findOption(parts, "-smp")
+	if smp_pos != 0 {
+		instance.readCpuTopology(parts[smp_pos+1])
+	}
+}
+
+func (instance *Instance) readCpuTopology(options string) {
+	_, cores := findInteger("cores=([0-9]+)", options)
+	_, threads := findInteger("threads=([0-9]+)", options)
+	_, sockets := findInteger("sockets=([0-9]+)", options)
+
+	if cores == 0 && threads == 0 && sockets == 0 {
+		return
+	}
+
+	log.Printf("[%v] Found CPU topology %v sockets, %v cores, %v threads\n", instance.MonitorPath, sockets, cores, threads)
+	instance.CpuTopology.Threads = uint(threads)
+	instance.CpuTopology.Cores = uint(cores)
+	instance.CpuTopology.Sockets = uint(sockets)
+}
+
+func findInteger(expression string, line string) (bool, int) {
+	re := regexp.MustCompile(expression)
+	found := re.FindStringSubmatch(line)
+
+	if len(found) < 2 {
+		return false, 0
+	}
+
+	retval, err := strconv.Atoi(found[1])
+	if err != nil {
+		return false, 0
+	}
+
+	return true, retval
+}
+
+func findOption(parts []string, part string) int {
+	for i, v := range parts {
+		if v == part {
+			return i
+		}
+	}
+
+	// 0 is safe, because first element of cmdline is binary itself
+	return 0
 }

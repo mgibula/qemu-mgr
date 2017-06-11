@@ -57,7 +57,7 @@ func (monitor *MonitorState) connect() {
 	monitor.queueCommand(&ReadUuid{})
 	monitor.queueCommand(&ReadKvm{})
 	monitor.queueCommand(&ReadStatus{})
-	monitor.queueCommand(&ReadCpus{})
+	monitor.queueCommand(&ReadCpus{ParseCmdLine: true})
 	monitor.queueCommand(&ReadPci{})
 
 	monitor.started = true
