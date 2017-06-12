@@ -151,6 +151,7 @@ func (instance *Instance) readMemorySettings(options string) {
 	_, size := findSize("^(?:size=)?([0-9]+)([GM]?)", options)
 
 	log.Printf("[%v] Found memory size %v MB\n", instance.MonitorPath, size)
+	instance.Memory.Current = uint(size)
 
 	if slots == 0 || maxmem == 0 {
 		log.Printf("[%v] Memory hotplug settings not found\n", instance.MonitorPath)
