@@ -45,8 +45,12 @@ func (instance *Instance) ConstructCommandLineArgs() []string {
 	cmd = append(cmd, "timestamp=on")
 	cmd = append(cmd, "-name")
 	cmd = append(cmd, instance.Name)
-	cmd = append(cmd, "-machine")
-	cmd = append(cmd, instance.constructMachineConfig())
+
+	if len(instance.Machine) != 0 {
+		cmd = append(cmd, "-machine")
+		cmd = append(cmd, instance.constructMachineConfig())
+	}
+
 	cmd = append(cmd, "-smp")
 	cmd = append(cmd, instance.constructSmpConfig())
 	cmd = append(cmd, "-m")
