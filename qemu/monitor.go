@@ -20,7 +20,7 @@ type MonitorAction struct {
 	Directory string
 	terminate chan os.Signal
 	sockets   map[string]*MonitorState
-	lock      sync.Mutex
+	sync.Mutex
 }
 
 // Execute starts periodic monitoring of provided directory
@@ -69,16 +69,16 @@ func (action *MonitorAction) startHttpServer() {
 }
 
 func (action *MonitorAction) listInstances(w http.ResponseWriter, r *http.Request) {
-	action.lock.Lock()
-	defer action.lock.Unlock()
+	action.Lock()
+	defer action.Unlock()
 
 	var list ListInstances
 
 	for _, m := range action.sockets {
 		if m.started && !m.ended {
-			m.lock.Lock()
+			m.Lock()
 			list.Instances = append(list.Instances, m.Instance)
-			m.lock.Unlock()
+			m.Unlock()
 		}
 	}
 
@@ -87,8 +87,8 @@ func (action *MonitorAction) listInstances(w http.ResponseWriter, r *http.Reques
 }
 
 func (action *MonitorAction) scanDirectory() {
-	action.lock.Lock()
-	defer action.lock.Unlock()
+	action.Lock()
+	defer action.Unlock()
 
 	files, _ := filepath.Glob(action.Directory)
 

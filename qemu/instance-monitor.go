@@ -12,7 +12,7 @@ const (
 )
 
 type MonitorState struct {
-	lock       sync.Mutex
+	sync.Mutex
 	Path       string
 	Instance   Instance
 	control    chan int
@@ -30,8 +30,8 @@ func (monitor *MonitorState) SendJson(msg interface{}) {
 }
 
 func (monitor *MonitorState) connect() {
-	monitor.lock.Lock()
-	defer monitor.lock.Unlock()
+	monitor.Lock()
+	defer monitor.Unlock()
 
 	log.Println("Started monitoring socket " + monitor.Path)
 	defer func() {
@@ -61,7 +61,7 @@ func (monitor *MonitorState) connect() {
 	monitor.queueCommand(&ReadPci{})
 
 	monitor.started = true
-	monitor.lock.Unlock()
+	monitor.Unlock()
 
 loop:
 	for {
@@ -69,16 +69,16 @@ loop:
 			monitor.command = monitor.queue[0]
 			monitor.queue = monitor.queue[1:]
 
-			monitor.lock.Lock()
+			monitor.Lock()
 			monitor.command.Execute(monitor)
-			monitor.lock.Unlock()
+			monitor.Unlock()
 		}
 
 		select {
 		case msg := <-monitor.input:
-			monitor.lock.Lock()
+			monitor.Lock()
 			monitor.processMessage(msg)
-			monitor.lock.Unlock()
+			monitor.Unlock()
 		case command := <-monitor.control:
 			if command == MONITOR_CLOSE {
 				break loop
@@ -86,7 +86,7 @@ loop:
 		}
 	}
 
-	monitor.lock.Lock()
+	monitor.Lock()
 	log.Println("Ended monitoring socket " + monitor.Path)
 }
 
